@@ -9,6 +9,48 @@ const { CATEGORIES, QUESTIONS } = require('./questions');
 
 const PORT = process.env.PORT || 3000;
 const MOD_PASS = process.env.MOD_PASS || 'JNTC2026';
+const PIXABAY_KEY = process.env.PIXABAY_KEY || '';
+const imgCache = new Map();
+
+async function resolveImage(q) {
+  if (!q || !q.topic) return null;
+  if (imgCache.has(q.topic)) {
+    q.imgUrl = imgCache.get(q.topic);
+    return q.imgUrl;
+  }
+  let url = null;
+  try {
+    if (PIXABAY_KEY) {
+      const term = q.topic.replace(/_/g, ' ').replace(/\(.*?\)/g, '').trim();
+      const r = await fetch(
+        'https://pixabay.com/api/?key=' + encodeURIComponent(PIXABAY_KEY) +
+        '&q=' + encodeURIComponent(term) +
+        '&lang=es&image_type=photo&orientation=horizontal&safesearch=true&per_page=3'
+      );
+      if (r.ok) {
+        const d = await r.json();
+        if (d.hits && d.hits.length) url = d.hits[0].webformatURL;
+      }
+    }
+    if (!url) {
+      const r = await fetch(
+        'https://es.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(q.topic),
+        { headers: { 'User-Agent': 'JNTC-Quiz/1.0' } }
+      );
+      if (r.ok) {
+        const d = await r.json();
+        if (d.thumbnail && d.thumbnail.source) {
+          url = d.thumbnail.source.replace(/\/\d+px-/, '/800px-');
+        } else if (d.originalimage && d.originalimage.source) {
+          url = d.originalimage.source;
+        }
+      }
+    }
+  } catch (e) {}
+  imgCache.set(q.topic, url);
+  q.imgUrl = url;
+  return url;
+}
 const READY_MS = 3000;
 const READING_MS = 3500;
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -32,7 +74,7 @@ const game = {
   phase: 'LOBBY',
   pin: newPin(),
   players: new Map(),
-  settings: { from: 1, to: 20, time: 20, random: false },
+  settings: { count: 20, time: 20 },
   order: [],
   pos: -1,
   timer: null,
@@ -78,27 +120,54 @@ function schedule(ms, fn) {
 
 /* ------------------------------ Flujo de la partida ------------------------------ */
 
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// Elige "count" preguntas al azar alternando categorías: nunca salen dos seguidas de la misma
+// categoría y se reparten de forma pareja entre las 5 categorías.
+function buildOrder(count) {
+  const cats = Object.keys(CATEGORIES);
+  const pools = {};
+  const refill = c => {
+    pools[c] = shuffle(QUESTIONS.map((q, i) => (q.c === c ? i : -1)).filter(i => i >= 0));
+  };
+  cats.forEach(refill);
+  const order = [];
+  let bag = [];
+  let last = null;
+  while (order.length < count) {
+    if (!bag.length) {
+      bag = shuffle(cats.slice());
+      if (bag.length > 1 && bag[0] === last) {
+        const k = bag.length - 1;
+        [bag[0], bag[k]] = [bag[k], bag[0]];
+      }
+    }
+    const c = bag.shift();
+    if (!pools[c].length) refill(c);
+    order.push(pools[c].pop());
+    last = c;
+  }
+  return order;
+}
+
 function startGame(cfg) {
   const N = QUESTIONS.length;
   cfg = cfg || {};
-  const from = clamp(parseInt(cfg.from, 10) || 1, 1, N);
-  let to = clamp(parseInt(cfg.to, 10) || 20, 1, N);
-  if (to < from) to = from;
+  const count = clamp(parseInt(cfg.count, 10) || 20, 1, N);
   const time = clamp(parseInt(cfg.time, 10) || 20, 5, 120);
-  const random = !!cfg.random;
-  game.settings = { from, to, time, random };
-  game.order = [];
-  for (let i = from - 1; i < to; i++) game.order.push(i);
-  if (random) {
-    for (let i = game.order.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [game.order[i], game.order[j]] = [game.order[j], game.order[i]];
-    }
-  }
+  game.settings = { count, time };
+  game.order = buildOrder(count);
   game.pos = -1;
   for (const p of game.players.values()) {
     p.score = 0;
     p.streak = 0;
+    p.correct = 0;
     p.answer = null;
     p.last = null;
   }
@@ -108,6 +177,7 @@ function startGame(cfg) {
 function nextQuestion() {
   game.pos++;
   if (game.pos >= game.order.length) return showPodium();
+  resolveImage(currentQ());
   for (const p of game.players.values()) {
     p.answer = null;
     p.last = null;
@@ -140,6 +210,7 @@ function endQuestion() {
     if (a) game.counts[a.choice]++;
     if (a && q && a.choice === q.a) {
       p.streak++;
+      p.correct++;
       const elapsed = clamp(a.elapsed, 0, total);
       const speed = Math.round((1 - (elapsed / total) / 2) * 1000);
       const bonus = p.streak >= 2 ? Math.min(500, (p.streak - 1) * 100) : 0;
@@ -169,6 +240,7 @@ function resetToLobby() {
   for (const p of game.players.values()) {
     p.score = 0;
     p.streak = 0;
+    p.correct = 0;
     p.answer = null;
     p.last = null;
   }
@@ -237,6 +309,7 @@ function basePublic() {
     s.category = { key: q.c, label: CATEGORIES[q.c] };
     if (ph !== 'GET_READY') s.text = q.q;
     if (ph === 'ANSWERING' || ph === 'QUESTION_RESULT' || ph === 'LEADERBOARD') s.options = q.o;
+    if (ph === 'ANSWERING' && q.imgUrl) s.img = q.imgUrl;
     // La respuesta correcta NUNCA se envía mientras se está votando
     if (ph === 'QUESTION_RESULT' || ph === 'LEADERBOARD') {
       s.correct = q.a;
@@ -247,7 +320,9 @@ function basePublic() {
     s.top5 = ranking().slice(0, 5).map((p, i) => ({ rank: i + 1, name: p.name, score: p.score, streak: p.streak }));
   }
   if (ph === 'PODIUM') {
-    s.podium = ranking().slice(0, 3).map((p, i) => ({ rank: i + 1, name: p.name, score: p.score }));
+    const rk = ranking();
+    s.podium = rk.slice(0, 3).map((p, i) => ({ rank: i + 1, name: p.name, score: p.score, correct: p.correct }));
+    s.runners = rk.slice(3, 5).map((p, i) => ({ rank: i + 4, name: p.name, score: p.score, correct: p.correct }));
   }
   return s;
 }
@@ -342,6 +417,7 @@ io.on('connection', socket => {
           name,
           score: 0,
           streak: 0,
+          correct: 0,
           online: true,
           socketId: null,
           answer: null,
