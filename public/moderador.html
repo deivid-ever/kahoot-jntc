@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JNTC Quiz · Moderador</title>
+<style>
+:root{--bg:#F4F7FB;--surface:#FFFFFF;--line:#DCE4F0;--navy:#111B54;--royal:#1565D8;--green:#236B28;--leaf:#5BA326;--red:#DC2626;--amber:#D97706;--shadow:0 6px 20px rgba(17,27,84,.06)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,-apple-system,Roboto,Arial,sans-serif;background:var(--bg);color:var(--navy);min-height:100vh}
+.wrap{max-width:860px;margin:0 auto;padding:14px 14px 40px;display:flex;flex-direction:column;gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:16px}
+.hide{display:none!important}
+.brand{display:flex;align-items:center;gap:10px}
+.logos{display:flex;align-items:center;gap:16px}
+.logo-h{height:56px;width:auto;max-width:100%;display:block}
+.logo-e{height:56px;width:56px;display:block}
+h2{font-size:1.05rem;margin-bottom:10px}
+
+/* Login */
+#login{max-width:420px;margin:12vh auto 0;display:flex;flex-direction:column;gap:12px;align-items:stretch}
+#login input{font:inherit;font-size:1.1rem;padding:12px 14px;border:2px solid var(--line);border-radius:12px;width:100%}
+#login input:focus{outline:none;border-color:var(--royal)}
+.err{color:var(--red);font-weight:700;min-height:1.2em}
+
+/* Cabecera de estado */
+.stat{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;justify-content:space-between}
+.status{background:var(--navy);color:#fff;border-radius:999px;padding:6px 16px;font-weight:800;font-size:.9rem;letter-spacing:.04em}
+.kv{display:flex;flex-direction:column;font-size:.8rem;color:#55608a;font-weight:600}
+.kv b{font-size:1.25rem;color:var(--navy)}
+.kv b.pin{letter-spacing:.12em;font-size:1.5rem}
+.dotc{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--red);margin-right:6px}
+.dotc.on{background:var(--leaf)}
+
+/* Botón principal */
+#mainBtn{width:100%;border:0;border-radius:18px;padding:26px 14px;font:inherit;font-weight:900;font-size:clamp(1.3rem,5vw,2rem);color:#fff;background:var(--royal);border-bottom:8px solid rgba(0,0,0,.25);cursor:pointer;touch-action:manipulation}
+#mainBtn:active{transform:translateY(4px);border-bottom-width:4px}
+#mainBtn:disabled{background:#9AA6C4;cursor:not-allowed}
+#mainBtn.amber{background:var(--amber)}
+#mainBtn.green{background:var(--green)}
+#mainBtn.navy{background:var(--navy)}
+#mainSub{text-align:center;font-weight:700;color:#55608a;margin-top:8px;min-height:1.3em}
+
+/* Configuración */
+.cfg{display:flex;flex-wrap:wrap;gap:14px 20px;align-items:flex-end}
+.cfg label{display:flex;flex-direction:column;font-weight:700;font-size:.85rem;gap:4px}
+.cfg input[type=number],.cfg select{font:inherit;padding:9px 10px;border:2px solid var(--line);border-radius:10px;width:110px;background:#fff}
+.cfg .chk{flex-direction:row;align-items:center;gap:8px;font-size:1rem}
+.cfg .chk input{width:20px;height:20px}
+.hint{font-size:.8rem;color:#55608a;margin-top:8px}
+.quick{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.quick button{font:inherit;font-weight:800;color:var(--royal);background:#fff;border:2px solid var(--line);border-radius:10px;padding:7px 16px;cursor:pointer}
+.quick button:active{background:var(--bg)}
+
+/* Vista previa */
+.prevq{font-size:1.15rem;font-weight:800;margin-bottom:10px;line-height:1.3}
+.prevmeta{font-size:.8rem;font-weight:700;color:var(--green);margin-bottom:6px}
+.po{display:flex;align-items:center;gap:10px;border:2px solid var(--line);border-radius:12px;padding:10px 12px;margin-top:8px;font-weight:600}
+.po .l{flex:none;width:30px;height:30px;border-radius:8px;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900}
+.po.ok{background:var(--green);border-color:var(--green);color:#fff}
+.po.ok .l{background:#fff;color:var(--green)}
+.po .tag{margin-left:auto;font-size:.75rem;font-weight:900;background:#fff;color:var(--green);border-radius:999px;padding:3px 10px;white-space:nowrap}
+.L0{background:var(--royal)}.L1{background:var(--green)}.L2{background:var(--navy)}.L3{background:var(--leaf)}
+
+/* Jugadores */
+table{width:100%;border-collapse:collapse;font-size:.92rem}
+th{text-align:left;font-size:.75rem;color:#55608a;text-transform:uppercase;padding:4px 6px}
+td{padding:8px 6px;border-top:1px solid var(--line);vertical-align:middle}
+td.n{font-weight:800;word-break:break-word}
+.kick{font:inherit;font-weight:700;font-size:.8rem;color:var(--red);background:#fff;border:1px solid #F3B5B5;border-radius:8px;padding:5px 10px;cursor:pointer}
+.reset{width:100%;font:inherit;font-weight:800;color:var(--red);background:#fff;border:2px solid var(--red);border-radius:12px;padding:12px;cursor:pointer}
+.empty{color:#55608a;font-weight:600}
+
+/* ===================== ANIMACIONES MEJORADAS (MODERADOR) ===================== */
+.card {
+  animation: modFade .35s cubic-bezier(.22,1,.36,1) both;
+}
+@keyframes modFade {
+  from { transform: translateY(10px); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+.dotc.on {
+  box-shadow: 0 0 0 0 rgba(91,163,38,.6);
+  animation: liveDot 2s ease-in-out infinite;
+}
+@keyframes liveDot {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(91,163,38,.5); }
+  50%      { box-shadow: 0 0 0 6px rgba(91,163,38,0); }
+}
+#mainBtn {
+  transition: transform .14s cubic-bezier(.34,1.56,.64,1), border-bottom-width .14s, background .25s ease, box-shadow .25s ease;
+  box-shadow: 0 8px 20px rgba(17,27,84,.12);
+}
+#mainBtn:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px rgba(17,27,84,.18);
+}
+#mainBtn:not(:disabled):active {
+  transform: translateY(4px);
+  border-bottom-width: 4px;
+}
+.quick button, .kick, .reset {
+  transition: transform .12s ease, background .15s ease, border-color .15s ease;
+}
+.quick button:hover { border-color: var(--royal); background: var(--bg); }
+.quick button:active, .kick:active { transform: scale(.95); }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Acceso -->
+  <section id="login" class="card hide">
+    <div class="logos"><img class="logo-h" src="/logo.svg" alt="XX Jornada Nacional Técnico-Científica"><img class="logo-e" src="/logo-evento.svg" alt="Evento"></div>
+    <h2>Panel del moderador</h2>
+    <input id="pw" type="password" placeholder="Clave de organizador" autocomplete="current-password">
+    <button id="pwBtn" style="font:inherit;font-weight:800;color:#fff;background:#1565D8;border:0;border-radius:12px;padding:13px;cursor:pointer">Entrar</button>
+    <div class="err" id="pwErr"></div>
+  </section>
+
+  <!-- Panel -->
+  <section id="panel" class="hide" style="display:contents">
+    <div class="card">
+      <div class="logos" style="margin-bottom:12px"><img class="logo-h" src="/logo.svg" alt="XX Jornada Nacional Técnico-Científica"><img class="logo-e" src="/logo-evento.svg" alt="Evento"></div>
+      <div class="stat">
+        <span class="status" id="status">—</span>
+        <div class="kv">PIN de la sala<b class="pin" id="pin">------</b></div>
+        <div class="kv">Entrada de celulares<b id="url" style="font-size:.95rem">—</b></div>
+        <div class="kv">Conectados<b id="conn"><span class="dotc" id="dot"></span>0</b></div>
+      </div>
+    </div>
+
+    <div>
+      <button id="mainBtn" disabled>…</button>
+      <div id="mainSub"></div>
+    </div>
+
+    <div class="card hide" id="cfgCard">
+      <h2>Configuración de la partida</h2>
+      <div class="cfg">
+        <label>Número de preguntas<input type="number" id="cCount" min="1" value="20"></label>
+        <label>Tiempo por pregunta
+          <select id="cTime"><option value="10">10 s</option><option value="15">15 s</option><option value="20" selected>20 s</option><option value="30">30 s</option></select>
+        </label>
+      </div>
+      <div class="quick" id="quick"><button data-n="10">10</button><button data-n="20">20</button><button data-n="30">30</button><button data-n="50">50</button><button data-n="100">100</button></div>
+      <div class="hint" id="cHint"></div>
+    </div>
+
+    <div class="card hide" id="prevCard">
+      <h2>Vista previa privada (solo moderador)</h2>
+      <div class="prevmeta" id="prevMeta"></div>
+      <div class="prevq" id="prevQ"></div>
+      <div id="prevOpts"></div>
+    </div>
+
+    <div class="card">
+      <h2>Participantes (<span id="pcount">0</span>)</h2>
+      <div id="plist"></div>
+    </div>
+
+    <button class="reset" id="resetBtn">⚠️ Reiniciar partida y volver al Lobby</button>
+  </section>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const STATUS = { LOBBY:'EN LOBBY', GET_READY:'PREPARANDO PREGUNTA', READING:'LEYENDO PREGUNTA', ANSWERING:'VOTANDO', QUESTION_RESULT:'MOSTRANDO RESULTADOS', LEADERBOARD:'EN RANKING', PODIUM:'EN PODIO' };
+const LET = ['A','B','C','D'];
+let pass = sessionStorage.getItem('modpass') || '';
+let M = null, offset = 0, cfgInit = false;
+const socket = io();
+
+function show(view) {
+  $('#login').classList.toggle('hide', view !== 'login');
+  $('#panel').classList.toggle('hide', view !== 'panel');
+}
+function auth(p) {
+  socket.emit('modAuth', p, res => {
+    if (res && res.ok) { pass = p; sessionStorage.setItem('modpass', p); show('panel'); $('#pwErr').textContent = ''; }
+    else { pass = ''; sessionStorage.removeItem('modpass'); show('login'); $('#pwErr').textContent = 'Clave incorrecta'; }
+  });
+}
+socket.on('connect', () => { $('#dot').classList.add('on'); if (pass) auth(pass); else show('login'); });
+socket.on('disconnect', () => $('#dot').classList.remove('on'));
+socket.on('moderatorState', s => { M = s; offset = s.serverNow - Date.now(); render(); });
+
+$('#pwBtn').addEventListener('click', () => { const v = $('#pw').value.trim(); if (v) auth(v); });
+$('#pw').addEventListener('keydown', e => { if (e.key === 'Enter') $('#pwBtn').click(); });
+
+function cfg() {
+  return { count: +$('#cCount').value || 20, time: +$('#cTime').value || 20 };
+}
+$('#quick').addEventListener('click', e => { const b = e.target.closest('[data-n]'); if (b) $('#cCount').value = b.dataset.n; });
+$('#mainBtn').addEventListener('click', () => {
+  if (!M) return;
+  if (M.phase === 'LOBBY') socket.emit('mod:start', cfg());
+  else socket.emit('mod:next');
+});
+$('#resetBtn').addEventListener('click', () => {
+  if (confirm('¿Reiniciar la partida y volver al Lobby? Se borrarán los puntajes (los participantes se conservan).')) socket.emit('mod:reset');
+});
+$('#plist').addEventListener('click', e => {
+  const b = e.target.closest('[data-kick]'); if (!b) return;
+  if (confirm('¿Expulsar a "' + b.dataset.name + '" de la partida?')) socket.emit('mod:kick', b.dataset.kick);
+});
+
+function render() {
+  if (!M) return;
+  const p = M.phase;
+  $('#status').textContent = STATUS[p] || p;
+  $('#pin').textContent = M.pin;
+  $('#url').textContent = location.origin + '/jugar';
+  $('#conn').innerHTML = '<span class="dotc' + (socket.connected ? ' on' : '') + '"></span>' + M.online + ' / ' + M.total + (p === 'ANSWERING' ? ' · ' + M.answered + ' respondieron' : '');
+
+  // Configuración (solo en LOBBY)
+  $('#cfgCard').classList.toggle('hide', p !== 'LOBBY');
+  if (!cfgInit && M.settings) {
+    $('#cCount').value = M.settings.count; $('#cTime').value = M.settings.time;
+    $('#cCount').max = M.maxQuestions; cfgInit = true;
+  }
+  $('#cHint').textContent = 'Banco de ' + M.maxQuestions + ' preguntas. Salen al azar y la categoría cambia en cada pregunta.';
+
+  // Botón principal
+  const b = $('#mainBtn');
+  b.className = ''; b.disabled = false;
+  let sub = '';
+  if (p === 'LOBBY') { b.textContent = '▶ EMPEZAR PARTIDA'; sub = M.online + ' participantes conectados'; }
+  else if (p === 'GET_READY' || p === 'READING') { b.textContent = '⏳ Presentando pregunta en proyector...'; b.disabled = true; }
+  else if (p === 'ANSWERING') { b.textContent = '⏭ CERRAR TIEMPO AHORA'; b.classList.add('amber'); }
+  else if (p === 'QUESTION_RESULT') { b.textContent = '📊 MOSTRAR RANKING (TOP 5) ➡'; b.classList.add('navy'); sub = 'El juego espera tu señal'; }
+  else if (p === 'LEADERBOARD') {
+    const last = M.qNum >= M.qTotal;
+    b.textContent = last ? '🏆 MOSTRAR PODIO FINAL ➡' : '▶ SIGUIENTE PREGUNTA ➡';
+    b.classList.add('green'); sub = last ? 'Última pregunta completada' : 'Presionar cuando todos estén listos';
+  }
+  else if (p === 'PODIUM') { b.textContent = '🔄 VOLVER AL LOBBY / NUEVA PARTIDA'; b.classList.add('navy'); }
+  $('#mainSub').dataset.base = sub;
+  tickSub();
+
+  // Vista previa privada
+  const pc = $('#prevCard');
+  if (M.modq) {
+    pc.classList.remove('hide');
+    $('#prevMeta').textContent = 'Pregunta ' + M.qNum + ' de ' + M.qTotal + ' · ' + M.modq.category;
+    $('#prevQ').textContent = M.modq.text;
+    $('#prevOpts').innerHTML = M.modq.options.map((t, i) =>
+      '<div class="po' + (i === M.modq.correct ? ' ok' : '') + '"><span class="l L' + i + '">' + LET[i] + '</span><span>' + esc(t) + '</span>' + (i === M.modq.correct ? '<span class="tag">✓ RESPUESTA CORRECTA</span>' : '') + '</div>').join('');
+  } else pc.classList.add('hide');
+
+  // Participantes
+  $('#pcount').textContent = M.players.length;
+  if (!M.players.length) $('#plist').innerHTML = '<div class="empty">Aún no hay participantes. Comparte el QR del proyector.</div>';
+  else $('#plist').innerHTML = '<table><thead><tr><th>Jugador</th><th>Puntaje</th><th>Estado</th><th>' + (p === 'ANSWERING' ? 'Respondió' : '') + '</th><th></th></tr></thead><tbody>'
+    + M.players.map(pl => '<tr><td class="n">' + esc(pl.name) + '</td><td>' + pl.score + '</td><td>' + (pl.online ? '🟢 Conectado' : '🔴 Desconectado') + '</td><td>' + (p === 'ANSWERING' ? (pl.answered ? '✓' : '⏳') : '') + '</td>'
+    + '<td><button class="kick" data-kick="' + pl.id + '" data-name="' + esc(pl.name) + '">Expulsar</button></td></tr>').join('') + '</tbody></table>';
+}
+
+function tickSub() {
+  if (!M) return;
+  const el = $('#mainSub');
+  if (M.phase === 'ANSWERING') {
+    const sec = Math.max(0, Math.ceil((M.phaseEndsAt - (Date.now() + offset)) / 1000));
+    el.textContent = '⏱ ' + sec + ' s · faltan ' + Math.max(0, M.online - M.answered) + ' por responder (' + M.answered + ' / ' + M.online + ')';
+  } else el.textContent = el.dataset.base || '';
+}
+setInterval(tickSub, 250);
+
+// Keep-alive para el plan gratuito de Render (cada 4 minutos)
+setInterval(() => fetch('/ping').catch(() => {}), 240000);
+</script>
+</body>
+</html>
