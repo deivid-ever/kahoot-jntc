@@ -131,24 +131,67 @@ td.n{font-weight:800;word-break:break-word}
         <div class="kv">PIN de la sala<b class="pin" id="pin">------</b></div>
         <div class="kv">Entrada de celulares<b id="url" style="font-size:.95rem">—</b></div>
         <div class="kv">Conectados<b id="conn"><span class="dotc" id="dot"></span>0</b></div>
+        <div class="kv">Fase actual<b id="roundLabel" style="font-size:.95rem">—</b></div>
       </div>
+    </div>
+
+    <div class="card hide" id="bracketCard">
+      <h2>🧩 Fases del concurso (bracket)</h2>
+
+      <div class="hint" style="margin:0 0 10px">
+        Calcula cuántos equipos de 3 se pueden formar con los asistentes y en cuántas tandas conviene dividir la Fase 1.
+      </div>
+      <div class="cfg">
+        <label>Personas en el auditorio<input type="number" id="bPeople" min="0" value="" placeholder="ej. 48"></label>
+        <label>Máx. equipos por tanda<input type="number" id="bMaxPerTanda" min="1" value="8"></label>
+      </div>
+      <div class="hint" id="bCalc"></div>
+
+      <div class="cfg" style="margin-top:14px">
+        <label>Fase
+          <select id="rFase"></select>
+        </label>
+        <label>Tanda
+          <select id="rTanda"></select>
+        </label>
+        <label>Tiempo por pregunta
+          <select id="rTime"><option value="10">10 s</option><option value="15">15 s</option><option value="20" selected>20 s</option><option value="30">30 s</option></select>
+        </label>
+      </div>
+      <div class="quick">
+        <button id="rExtraBtn" type="button">➕ Generar tanda extra (reserva)</button>
+      </div>
+      <div class="hint" id="rHint"></div>
+      <button id="rStartBtn" style="margin-top:10px;width:100%;font:inherit;font-weight:900;color:#fff;background:var(--royal);border:0;border-radius:12px;padding:14px;cursor:pointer">▶ INICIAR ESTA TANDA</button>
+
+      <details style="margin-top:16px">
+        <summary style="cursor:pointer;font-weight:800;color:#55608a">Modo libre (preguntas aleatorias, fuera del bracket)</summary>
+        <div class="cfg" style="margin-top:12px">
+          <label>Número de preguntas<input type="number" id="cCount" min="1" value="20"></label>
+          <label>Tiempo por pregunta
+            <select id="cTime"><option value="10">10 s</option><option value="15">15 s</option><option value="20" selected>20 s</option><option value="30">30 s</option></select>
+          </label>
+        </div>
+        <div class="quick" id="quick"><button data-n="10">10</button><button data-n="20">20</button><button data-n="30">30</button><button data-n="50">50</button><button data-n="100">100</button></div>
+        <div class="hint" id="cHint"></div>
+        <button id="freeStartBtn" style="margin-top:10px;width:100%;font:inherit;font-weight:800;color:var(--navy);background:#fff;border:2px solid var(--line);border-radius:12px;padding:12px;cursor:pointer">▶ Iniciar partida libre</button>
+      </details>
+    </div>
+
+    <div class="card hide" id="qualifyCard">
+      <h2>🏁 Clasificar a la siguiente fase</h2>
+      <div class="hint" style="margin:0 0 10px">
+        Define cuántos equipos o participantes (los de mayor puntaje) avanzan. El resto se expulsará de la sala; los que avanzan conservan su mismo dispositivo y arrancan en 0 en la nueva fase.
+      </div>
+      <div class="cfg">
+        <label>Avanzan los mejores<input type="number" id="qCount" min="1" value="3"></label>
+      </div>
+      <button id="qualifyBtn" style="margin-top:6px;width:100%;font:inherit;font-weight:800;color:#fff;background:var(--leaf);border:0;border-radius:12px;padding:12px;cursor:pointer">✅ Marcar clasificados y expulsar al resto</button>
     </div>
 
     <div>
       <button id="mainBtn" disabled>…</button>
       <div id="mainSub"></div>
-    </div>
-
-    <div class="card hide" id="cfgCard">
-      <h2>Configuración de la partida</h2>
-      <div class="cfg">
-        <label>Número de preguntas<input type="number" id="cCount" min="1" value="20"></label>
-        <label>Tiempo por pregunta
-          <select id="cTime"><option value="10">10 s</option><option value="15">15 s</option><option value="20" selected>20 s</option><option value="30">30 s</option></select>
-        </label>
-      </div>
-      <div class="quick" id="quick"><button data-n="10">10</button><button data-n="20">20</button><button data-n="30">30</button><button data-n="50">50</button><button data-n="100">100</button></div>
-      <div class="hint" id="cHint"></div>
     </div>
 
     <div class="card hide" id="prevCard">
@@ -201,8 +244,81 @@ function cfg() {
 $('#quick').addEventListener('click', e => { const b = e.target.closest('[data-n]'); if (b) $('#cCount').value = b.dataset.n; });
 $('#mainBtn').addEventListener('click', () => {
   if (!M) return;
-  if (M.phase === 'LOBBY') socket.emit('mod:start', cfg());
-  else socket.emit('mod:next');
+  if (M.phase !== 'LOBBY') socket.emit('mod:next');
+});
+$('#freeStartBtn').addEventListener('click', () => {
+  if (!M || M.phase !== 'LOBBY') return;
+  socket.emit('mod:start', cfg());
+});
+
+/* ----------------- Calculadora de equipos de 3 ----------------- */
+function renderCalc() {
+  const n = Math.max(0, parseInt($('#bPeople').value, 10) || 0);
+  const maxPer = Math.max(1, parseInt($('#bMaxPerTanda').value, 10) || 8);
+  if (!n) { $('#bCalc').textContent = ''; return; }
+  const equipos = Math.floor(n / 3);
+  const sobran = n % 3;
+  const tandas = Math.max(1, Math.ceil(equipos / maxPer));
+  let txt = equipos + ' equipos de 3 ' + (sobran ? '(sobran ' + sobran + ' persona' + (sobran > 1 ? 's' : '') + ', se pueden sumar a un equipo) ' : '') + '· sugerido: ' + tandas + ' tanda' + (tandas > 1 ? 's' : '') + ' de hasta ' + maxPer + ' equipos cada una.';
+  if (tandas > 2) txt += ' La Fase 1 trae 2 tandas listas; usa "Generar tanda extra" para crear las ' + (tandas - 2) + ' adicionales desde la reserva.';
+  $('#bCalc').textContent = txt;
+}
+$('#bPeople').addEventListener('input', renderCalc);
+$('#bMaxPerTanda').addEventListener('input', renderCalc);
+
+/* ----------------- Selector de fase / tanda (bracket) ----------------- */
+function currentFaseCfg() {
+  if (!M || !M.rondas) return null;
+  return M.rondas.find(r => r.key === $('#rFase').value) || null;
+}
+function fillTandaSelect() {
+  const f = currentFaseCfg();
+  const sel = $('#rTanda');
+  const prev = sel.value;
+  sel.innerHTML = '';
+  if (!f) return;
+  for (let i = 0; i < f.tandas; i++) {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = 'Tanda ' + (i + 1) + (i >= 2 && f.key === 'fase1' ? ' (extra)' : (f.tandas === 1 ? '' : ' (extra)'));
+    sel.appendChild(opt);
+  }
+  if (prev && +prev < f.tandas) sel.value = prev;
+  $('#rHint').textContent = f.label + ' · ' + f.perTanda + ' preguntas por tanda · modalidad: ' + (f.mode === 'equipos' ? 'por equipos (un dispositivo por equipo)' : 'individual') + ' · quedan ' + f.reserveLeft + ' preguntas en reserva.';
+}
+function fillFaseSelect() {
+  if (!M || !M.rondas) return;
+  const sel = $('#rFase');
+  const prev = sel.value;
+  sel.innerHTML = M.rondas.map(r => '<option value="' + r.key + '">' + esc(r.label) + '</option>').join('');
+  if (prev) sel.value = prev;
+  fillTandaSelect();
+}
+$('#rFase').addEventListener('change', fillTandaSelect);
+$('#rExtraBtn').addEventListener('click', () => {
+  const f = currentFaseCfg();
+  if (!f) return;
+  if (f.reserveLeft < f.perTanda) {
+    if (!confirm('Solo quedan ' + f.reserveLeft + ' preguntas en la reserva de esta fase (en vez de ' + f.perTanda + '). ¿Generar la tanda de todas formas?')) return;
+  }
+  socket.emit('mod:genExtraTanda', { faseKey: f.key, size: f.perTanda }, res => {
+    if (res && res.ok) { fillFaseSelect(); $('#rTanda').value = res.tandaIndex; fillTandaSelect(); $('#rTanda').value = res.tandaIndex; }
+    else alert((res && res.error) || 'No se pudo generar la tanda extra');
+  });
+});
+$('#rStartBtn').addEventListener('click', () => {
+  if (!M || M.phase !== 'LOBBY') return;
+  const faseKey = $('#rFase').value, tandaIndex = +$('#rTanda').value, time = +$('#rTime').value || 20;
+  socket.emit('mod:startRound', { faseKey, tandaIndex, time }, res => {
+    if (res && !res.ok) alert(res.error || 'No se pudo iniciar la tanda');
+  });
+});
+
+/* ----------------- Clasificar a la siguiente fase ----------------- */
+$('#qualifyBtn').addEventListener('click', () => {
+  const n = Math.max(0, parseInt($('#qCount').value, 10) || 0);
+  if (!confirm('¿Avanzan los ' + n + ' mejores? El resto será expulsado de la sala.')) return;
+  socket.emit('mod:qualify', n);
 });
 $('#resetBtn').addEventListener('click', () => {
   if (confirm('¿Reiniciar la partida y volver al Lobby? Se borrarán los puntajes (los participantes se conservan).')) socket.emit('mod:reset');
@@ -219,20 +335,38 @@ function render() {
   $('#pin').textContent = M.pin;
   $('#url').textContent = location.origin + '/jugar';
   $('#conn').innerHTML = '<span class="dotc' + (socket.connected ? ' on' : '') + '"></span>' + M.online + ' / ' + M.total + (p === 'ANSWERING' ? ' · ' + M.answered + ' respondieron' : '');
+  $('#roundLabel').textContent = M.round ? M.round.label : '— (modo libre)';
 
-  // Configuración (solo en LOBBY)
-  $('#cfgCard').classList.toggle('hide', p !== 'LOBBY');
+  // Bracket y configuración libre (solo en LOBBY)
+  $('#bracketCard').classList.toggle('hide', p !== 'LOBBY');
+  if (p === 'LOBBY' && M.rondas && !$('#rFase').dataset.filled) {
+    fillFaseSelect();
+    $('#rFase').dataset.filled = '1';
+  } else if (p === 'LOBBY' && M.rondas) {
+    // mantiene el conteo de tandas/reserva al día (p. ej. tras generar una tanda extra)
+    const f = currentFaseCfg();
+    if (f) {
+      const sel = $('#rTanda');
+      const latest = M.rondas.find(r => r.key === f.key);
+      if (latest && sel.options.length !== latest.tandas) fillTandaSelect();
+      else $('#rHint').textContent = latest.label + ' · ' + latest.perTanda + ' preguntas por tanda · modalidad: ' + (latest.mode === 'equipos' ? 'por equipos (un dispositivo por equipo)' : 'individual') + ' · quedan ' + latest.reserveLeft + ' preguntas en reserva.';
+    }
+  }
   if (!cfgInit && M.settings) {
     $('#cCount').value = M.settings.count; $('#cTime').value = M.settings.time;
     $('#cCount').max = M.maxQuestions; cfgInit = true;
   }
   $('#cHint').textContent = 'Banco de ' + M.maxQuestions + ' preguntas. Salen al azar y la categoría cambia en cada pregunta.';
 
+  // Clasificar (solo en el podio de una tanda/fase)
+  $('#qualifyCard').classList.toggle('hide', p !== 'PODIUM');
+  if (p === 'PODIUM' && M.players && M.players.length) $('#qCount').max = M.players.length;
+
   // Botón principal
   const b = $('#mainBtn');
   b.className = ''; b.disabled = false;
   let sub = '';
-  if (p === 'LOBBY') { b.textContent = '▶ EMPEZAR PARTIDA'; sub = M.online + ' participantes conectados'; }
+  if (p === 'LOBBY') { b.textContent = 'Elige una fase/tanda arriba ⬆'; b.disabled = true; sub = M.online + ' participantes conectados'; }
   else if (p === 'GET_READY' || p === 'READING') { b.textContent = '⏳ Presentando pregunta en proyector...'; b.disabled = true; }
   else if (p === 'ANSWERING') { b.textContent = '⏭ CERRAR TIEMPO AHORA'; b.classList.add('amber'); }
   else if (p === 'QUESTION_RESULT') { b.textContent = '📊 MOSTRAR RANKING (TOP 5) ➡'; b.classList.add('navy'); sub = 'El juego espera tu señal'; }

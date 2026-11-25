@@ -170,4 +170,55 @@ const IMG_TOPICS = [
 
 QUESTIONS.forEach((q, i) => { q.topic = IMG_TOPICS[i] || CATEGORIES[q.c]; });
 
-module.exports = { CATEGORIES, QUESTIONS };
+// Numeración oficial 1-100 del documento "Preguntas por ronda" (coincide con el
+// orden del banco: pregunta n está en QUESTIONS[n - 1]).
+QUESTIONS.forEach((q, i) => { q.num = i + 1; });
+const QUESTION_BY_NUM = new Map(QUESTIONS.map(q => [q.num, q]));
+
+// ===================== Fases / brackets del concurso =====================
+// Reproduce el reglamento: Fase 1 clasificatoria por equipos (2 tandas de 8),
+// Fase 2 semifinal por equipos (8), Fase 3 ronda individual (6) y Fase 4 gran
+// final (5). Cada fase trae además un banco de "reserva" (del mismo documento)
+// para generar tandas adicionales si se forman más equipos de los previstos,
+// o para una pregunta de desempate.
+const ROUNDS = {
+  fase1: {
+    label: 'Fase 1 · Clasificatoria por equipos',
+    mode: 'equipos',
+    perTanda: 8,
+    tandas: [
+      [1, 2, 23, 28, 34, 26, 61, 62],
+      [3, 4, 5, 8, 12, 13, 19, 20]
+    ],
+    reserve: [7, 14, 15, 21, 35, 37, 65, 68, 93, 11, 16, 29, 36, 57, 75, 81, 82, 83, 84]
+  },
+  fase2: {
+    label: 'Fase 2 · Semifinal por equipos',
+    mode: 'equipos',
+    perTanda: 8,
+    tandas: [
+      [6, 9, 10, 17, 18, 22, 24, 25]
+    ],
+    reserve: [27, 30, 32, 33, 38, 39, 40, 63, 64, 66, 67, 71, 72, 73, 74, 78, 79]
+  },
+  fase3: {
+    label: 'Fase 3 · Ronda individual',
+    mode: 'individual',
+    perTanda: 6,
+    tandas: [
+      [41, 43, 44, 45, 47, 48]
+    ],
+    reserve: [42, 46, 53, 56, 59, 60, 69, 70, 76, 77, 80, 85, 86, 87]
+  },
+  fase4: {
+    label: 'Fase 4 · Gran Final',
+    mode: 'individual',
+    perTanda: 5,
+    tandas: [
+      [52, 49, 89, 91, 100]
+    ],
+    reserve: [88, 90, 92, 94, 95, 96, 97, 98, 99, 50, 51, 54, 55, 58, 31]
+  }
+};
+
+module.exports = { CATEGORIES, QUESTIONS, QUESTION_BY_NUM, ROUNDS };

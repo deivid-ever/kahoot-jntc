@@ -1,19 +1,37 @@
 'use strict';
 
 const path = require('path');
+const fs = require('fs');
 const http = require('http');
 const crypto = require('crypto');
 const express = require('express');
 const { Server } = require('socket.io');
-const { CATEGORIES, QUESTIONS } = require('./questions');
+const { CATEGORIES, QUESTIONS, ROUNDS } = require('./questions');
+const NUM_TO_INDEX = new Map(QUESTIONS.map((q, i) => [q.num, i]));
 
 const PORT = process.env.PORT || 3000;
 const MOD_PASS = process.env.MOD_PASS || 'JNTC2026';
 const PIXABAY_KEY = process.env.PIXABAY_KEY || '';
 const imgCache = new Map();
 
+// Imágenes pre-descargadas con "npm run fetch-images" (ver scripts/fetch-images.js).
+// Si el tema está aquí, se usa el archivo local y NO se hace ninguna solicitud
+// a internet durante el evento en vivo.
+const IMG_MANIFEST_PATH = path.join(__dirname, 'public', 'img', 'manifest.json');
+let localImgManifest = {};
+try {
+  localImgManifest = JSON.parse(fs.readFileSync(IMG_MANIFEST_PATH, 'utf8'));
+  console.log('Imágenes locales cargadas: ' + Object.keys(localImgManifest).length + ' temas');
+} catch (e) {
+  console.log('Sin manifiesto de imágenes locales todavía. Corre "npm run fetch-images" para generarlo.');
+}
+
 async function resolveImage(q) {
   if (!q || !q.topic) return null;
+  if (localImgManifest[q.topic]) {
+    q.imgUrl = localImgManifest[q.topic];
+    return q.imgUrl;
+  }
   if (imgCache.has(q.topic)) {
     q.imgUrl = imgCache.get(q.topic);
     return q.imgUrl;
@@ -83,7 +101,12 @@ const game = {
   phaseMs: 0,
   qStart: 0,
   counts: [0, 0, 0, 0],
-  closeFor: null
+  closeFor: null,
+  // Bracket: fase/tanda actual y tandas extra generadas desde la reserva
+  round: null, // { faseKey, tandaIndex, label, mode }
+  extraTandas: {}, // faseKey -> [ [n, n, ...], ... ] tandas adicionales generadas
+  reserveShuffled: {}, // faseKey -> reserva ya barajada (se baraja una sola vez)
+  reservePointer: {} // faseKey -> cuántos números de la reserva ya se usaron
 };
 
 function newPin() {
@@ -156,13 +179,69 @@ function buildOrder(count) {
   return order;
 }
 
+/* ------------------------------ Fases / brackets ------------------------------ */
+
+// Todas las tandas disponibles de una fase: las fijas del reglamento + las
+// generadas en vivo desde la reserva (ver genExtraTanda).
+function getFaseTandas(faseKey) {
+  const cfg = ROUNDS[faseKey];
+  if (!cfg) return [];
+  return cfg.tandas.concat(game.extraTandas[faseKey] || []);
+}
+
+// Genera una tanda adicional para una fase tomando los siguientes números sin
+// usar de su reserva. Se baraja una sola vez por fase para no repetir orden
+// entre llamadas. Devuelve null si ya no quedan suficientes preguntas.
+function genExtraTanda(faseKey, size) {
+  const cfg = ROUNDS[faseKey];
+  if (!cfg) return null;
+  if (!game.reserveShuffled[faseKey]) {
+    game.reserveShuffled[faseKey] = shuffle(cfg.reserve.slice());
+    game.reservePointer[faseKey] = 0;
+  }
+  const pool = game.reserveShuffled[faseKey];
+  const from = game.reservePointer[faseKey];
+  size = clamp(parseInt(size, 10) || cfg.perTanda, 1, 15);
+  const nums = pool.slice(from, from + size);
+  if (!nums.length) return null;
+  game.reservePointer[faseKey] = from + nums.length;
+  if (!game.extraTandas[faseKey]) game.extraTandas[faseKey] = [];
+  game.extraTandas[faseKey].push(nums);
+  return { tandaIndex: getFaseTandas(faseKey).length - 1, nums };
+}
+
+// Traduce la lista de números oficiales (1-100) de una tanda a índices del
+// banco de preguntas, en el orden exacto del documento (no se mezcla).
+function buildRoundOrder(faseKey, tandaIndex) {
+  const tandas = getFaseTandas(faseKey);
+  const nums = tandas[tandaIndex];
+  if (!nums || !nums.length) return null;
+  const order = nums.map(n => NUM_TO_INDEX.get(n)).filter(i => i !== undefined);
+  return order.length ? order : null;
+}
+
 function startGame(cfg) {
   const N = QUESTIONS.length;
   cfg = cfg || {};
-  const count = clamp(parseInt(cfg.count, 10) || 20, 1, N);
   const time = clamp(parseInt(cfg.time, 10) || 20, 5, 120);
-  game.settings = { count, time };
-  game.order = buildOrder(count);
+  let order;
+  if (cfg.mode === 'round') {
+    order = buildRoundOrder(cfg.faseKey, cfg.tandaIndex);
+    if (!order) return false;
+    const faseCfg = ROUNDS[cfg.faseKey];
+    game.round = {
+      faseKey: cfg.faseKey,
+      tandaIndex: cfg.tandaIndex,
+      mode: faseCfg.mode,
+      label: faseCfg.label + ' · Tanda ' + (cfg.tandaIndex + 1)
+    };
+  } else {
+    const count = clamp(parseInt(cfg.count, 10) || 20, 1, N);
+    order = buildOrder(count);
+    game.round = null; // partida libre, fuera del bracket oficial
+  }
+  game.settings = { count: order.length, time };
+  game.order = order;
   game.pos = -1;
   for (const p of game.players.values()) {
     p.score = 0;
@@ -172,6 +251,7 @@ function startGame(cfg) {
     p.last = null;
   }
   nextQuestion();
+  return true;
 }
 
 function nextQuestion() {
@@ -303,7 +383,8 @@ function basePublic() {
     answered: all.filter(p => p.answer).length,
     qNum: game.pos + 1,
     qTotal: game.order.length,
-    timeTotal: game.settings.time
+    timeTotal: game.settings.time,
+    round: game.round ? { label: game.round.label, mode: game.round.mode } : null
   };
   if (q && ph !== 'LOBBY' && ph !== 'PODIUM') {
     s.category = { key: q.c, label: CATEGORIES[q.c] };
@@ -344,6 +425,22 @@ function meOf(p, rk) {
   };
 }
 
+// Catálogo de fases/tandas para el panel de brackets del moderador.
+function rondasInfo() {
+  return Object.keys(ROUNDS).map(k => {
+    const cfg = ROUNDS[k];
+    const extra = game.extraTandas[k] || [];
+    return {
+      key: k,
+      label: cfg.label,
+      mode: cfg.mode,
+      perTanda: cfg.perTanda,
+      tandas: cfg.tandas.length + extra.length,
+      reserveLeft: Math.max(0, cfg.reserve.length - (game.reservePointer[k] || 0))
+    };
+  });
+}
+
 function modState(base, rk) {
   const q = currentQ();
   const show = q && game.phase !== 'LOBBY' && game.phase !== 'PODIUM';
@@ -351,6 +448,7 @@ function modState(base, rk) {
     settings: game.settings,
     maxQuestions: QUESTIONS.length,
     modq: show ? { num: game.pos + 1, category: CATEGORIES[q.c], text: q.q, options: q.o, correct: q.a } : null,
+    rondas: rondasInfo(),
     players: rk.map(p => ({
       id: p.id, name: p.name, score: p.score, streak: p.streak, online: p.online, answered: !!p.answer
     }))
@@ -458,6 +556,35 @@ io.on('connection', socket => {
   socket.on('mod:next', () => {
     if (!socket.data.mod) return;
     nextStep();
+  });
+  socket.on('mod:startRound', (cfg, cb) => {
+    if (typeof cb !== 'function') cb = () => {};
+    if (!socket.data.mod || game.phase !== 'LOBBY') return cb({ ok: false, error: 'Vuelve al lobby para iniciar una ronda' });
+    cfg = cfg || {};
+    const ok = startGame({ mode: 'round', faseKey: cfg.faseKey, tandaIndex: cfg.tandaIndex, time: cfg.time });
+    cb(ok ? { ok: true } : { ok: false, error: 'No hay preguntas para esa fase/tanda' });
+  });
+  socket.on('mod:genExtraTanda', (cfg, cb) => {
+    if (typeof cb !== 'function') cb = () => {};
+    if (!socket.data.mod) return;
+    cfg = cfg || {};
+    const r = genExtraTanda(cfg.faseKey, cfg.size);
+    if (!r) return cb({ ok: false, error: 'La reserva de esa fase ya se agotó' });
+    cb({ ok: true, tandaIndex: r.tandaIndex, count: r.nums.length });
+    broadcast();
+  });
+  socket.on('mod:qualify', count => {
+    if (!socket.data.mod) return;
+    count = clamp(parseInt(count, 10) || 0, 0, game.players.size);
+    const rk = ranking();
+    const keep = new Set(rk.slice(0, count).map(p => p.id));
+    for (const p of [...game.players.values()]) {
+      if (keep.has(p.id)) continue;
+      if (p.socketId) io.to(p.socketId).emit('kicked');
+      game.players.delete(p.id);
+    }
+    broadcast();
+    checkAllAnswered();
   });
   socket.on('mod:kick', id => {
     if (!socket.data.mod) return;

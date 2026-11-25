@@ -755,6 +755,7 @@ function renderLobby(s) {
     + '<div class="lside"><div class="lhead card"><img class="ev" src="/logo-evento.svg" alt=""><div class="lt"><div class="k">¡Únete al juego!</div>'
     + '<div class="u"><span>o entra a</span> ' + esc(base.replace(/^https?:\/\//, '') + '/jugar') + '</div></div></div>'
     + '<div class="pinbox"><span>PIN DE JUEGO</span><div class="pin">' + esc(s.pin) + '</div></div>'
+    + (s.round ? '<div class="wait" style="background:#FFF4D6;color:#8a5b00"><i></i><b>' + esc(s.round.label) + '</b></div>' : '')
     + '<div class="wait"><i></i>Esperando inicio del moderador… <b id="cnt">' + s.online + '</b> conectados</div>'
     + '<div class="pwrap"><h3>Participantes</h3><div class="plist" id="plist"></div></div></div></div>';
   try { $('#qr').innerHTML = QR.svg(base + '/jugar?pin=' + s.pin); } catch (e) { $('#qr').textContent = 'QR no disponible'; }
