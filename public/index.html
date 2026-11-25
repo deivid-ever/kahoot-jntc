@@ -355,7 +355,7 @@ button.snd:hover{background:var(--bg)}
   to   { transform: none; opacity: 1; }
 }
 
-/* ===================== TELÓN Y REFLECTOR (PROYECTOR) ===================== */
+/* ===================== TELÓN ROJO Y REFLECTOR (PROYECTOR) ===================== */
 #curtainStage {
   position: fixed;
   inset: 0;
@@ -363,66 +363,114 @@ button.snd:hover{background:var(--bg)}
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #060918;
+  background: #060606;
   overflow: hidden;
   pointer-events: none;
-  animation: stageFadeOut .45s 1.4s ease-in forwards;
+  animation: stageFadeOut .45s 1.5s ease-in forwards;
 }
+/* Pliegues del telón rojo, estilo cortina de teatro ilustrada */
 .curtain-panel {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 52%;
+  top: -5%;
+  bottom: -5%;
+  width: 55%;
   z-index: 4;
   background:
     repeating-linear-gradient(
       90deg,
-      #10184a 0px,
-      #1b276e 18px,
-      #0c1238 36px,
-      #16215e 54px
+      #7a0404 0px,
+      #c2051f 16px,
+      #5c0101 32px,
+      #9c0317 48px,
+      #4a0000 64px
     );
-  box-shadow: inset 0 0 60px rgba(0,0,0,.75);
+  box-shadow: inset 0 0 90px rgba(0,0,0,.8), inset 0 0 24px rgba(255,255,255,.1);
+}
+/* Galería superior festoneada en dorado, remate "animado" del telón */
+.curtain-panel::before {
+  content: "";
+  position: absolute;
+  top: 0; left: -2px; right: -2px;
+  height: 7%;
+  background:
+    repeating-radial-gradient(circle at 50% 0%, #FFD24C 0 7px, #c98f00 7px 8px, transparent 8px 38px);
+  background-size: 38px 24px;
+  background-position: center top;
+  border-bottom: 4px solid #F5B700;
 }
 .curtain-panel.left {
   left: 0;
   border-right: 6px solid #F5B700;
   transform-origin: left center;
-  animation: openLeft .85s .15s cubic-bezier(.76, 0, .24, 1) forwards;
+  animation: openLeft 1.05s .15s cubic-bezier(.34, 1.56, .64, 1) forwards;
 }
 .curtain-panel.right {
   right: 0;
   border-left: 6px solid #F5B700;
   transform-origin: right center;
-  animation: openRight .85s .15s cubic-bezier(.76, 0, .24, 1) forwards;
+  animation: openRight 1.05s .15s cubic-bezier(.34, 1.56, .64, 1) forwards;
 }
+/* Apertura con "tirón" y ondulado de tela, como una cortina animada a mano */
 @keyframes openLeft {
   0%   { transform: translateX(0) skewX(0deg); }
-  45%  { transform: translateX(-35%) skewX(-3deg); }
-  100% { transform: translateX(-105%) skewX(0deg); }
+  10%  { transform: translateX(-2%) skewX(2.5deg); }
+  38%  { transform: translateX(-42%) skewX(-4deg); }
+  68%  { transform: translateX(-88%) skewX(2deg); }
+  100% { transform: translateX(-108%) skewX(0deg); }
 }
 @keyframes openRight {
   0%   { transform: translateX(0) skewX(0deg); }
-  45%  { transform: translateX(35%) skewX(3deg); }
-  100% { transform: translateX(105%) skewX(0deg); }
+  10%  { transform: translateX(2%) skewX(-2.5deg); }
+  38%  { transform: translateX(42%) skewX(4deg); }
+  68%  { transform: translateX(88%) skewX(-2deg); }
+  100% { transform: translateX(108%) skewX(0deg); }
 }
+/* Haz de luz blanco: cono con perspectiva (fuente arriba) + óvalo de piso */
 .spotlight-beam {
   position: absolute;
-  inset: -20%;
+  inset: 0;
   z-index: 2;
-  background: radial-gradient(
-    circle 260px at 50% 50%,
-    rgba(255, 244, 196, .34) 0%,
-    rgba(245, 183, 0, .14) 38%,
-    rgba(6, 9, 24, .92) 72%
-  );
-  animation: spotTrack 1.35s .2s cubic-bezier(.22, 1, .36, 1) both;
 }
-@keyframes spotTrack {
-  0%   { transform: translate(-28%, -12%) scale(.75); opacity: 0; }
-  25%  { opacity: 1; }
-  65%  { transform: translate(16%, 4%) scale(1.05); opacity: 1; }
-  100% { transform: translate(0%, 0%) scale(1.35); opacity: 1; }
+.spotlight-beam::after {
+  content: "";
+  position: absolute;
+  inset: -25%;
+  z-index: -1;
+  background: radial-gradient(circle at 50% 56%, transparent 28%, rgba(0,0,0,.88) 76%);
+}
+.spot-cone {
+  position: absolute;
+  top: -8%;
+  left: 50%;
+  width: 150%;
+  height: 95%;
+  transform: translateX(-50%) scaleY(.4);
+  clip-path: polygon(48.5% 0%, 51.5% 0%, 80% 100%, 20% 100%);
+  background: linear-gradient(to bottom, rgba(255,255,255,.6) 0%, rgba(255,255,255,.18) 55%, rgba(255,255,255,0) 82%);
+  opacity: 0;
+  animation: spotConeIn 1.15s .22s cubic-bezier(.22, 1, .36, 1) forwards;
+}
+@keyframes spotConeIn {
+  0%   { opacity: 0; transform: translateX(-50%) scaleY(.35); }
+  100% { opacity: 1; transform: translateX(-50%) scaleY(1); }
+}
+.spot-pool {
+  position: absolute;
+  left: 50%;
+  bottom: 8%;
+  width: 58%;
+  height: 24%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(255,255,255,.96) 0%, rgba(255,255,255,.55) 38%, rgba(255,255,255,0) 74%);
+  filter: blur(2px);
+  opacity: 0;
+  transform: translateX(-50%) scale(.4);
+  animation: spotPoolIn 1.25s .28s cubic-bezier(.22, 1, .36, 1) forwards;
+}
+@keyframes spotPoolIn {
+  0%   { opacity: 0; transform: translateX(-50%) scale(.35); }
+  60%  { opacity: 1; }
+  100% { opacity: 1; transform: translateX(-50%) scale(1); }
 }
 .stage-q {
   position: relative;
@@ -666,7 +714,7 @@ function playCurtain(qNum, qText, catLabel) {
   stage.innerHTML =
     '<div class="curtain-panel left"></div>'
     + '<div class="curtain-panel right"></div>'
-    + '<div class="spotlight-beam"></div>'
+    + '<div class="spotlight-beam"><span class="spot-cone"></span><span class="spot-pool"></span></div>'
     + '<div class="stage-q">'
     + '<div class="sq-tag">Pregunta ' + qNum + (catLabel ? ' · ' + esc(catLabel) : '') + '</div>'
     + '<div class="sq-text">' + esc(qText || '¡Prepárate!') + '</div>'
