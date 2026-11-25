@@ -164,7 +164,7 @@ function buildRoundOrder(faseKey, tandaIndex) {
 function startGame(cfg) {
   const N = QUESTIONS.length;
   cfg = cfg || {};
-  const time = clamp(parseInt(cfg.time, 10) || 20, 5, 120);
+  const time = clamp(parseInt(cfg.time, 10) || 20, 5, 600);
   let order;
   if (cfg.mode === 'round') {
     order = buildRoundOrder(cfg.faseKey, cfg.tandaIndex);
