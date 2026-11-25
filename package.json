@@ -4,8 +4,7 @@
   "description": "Clon de Kahoot! para la XX Jornada Nacional Técnico-Científica (JNTC)",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "fetch-images": "node scripts/fetch-images.js"
+    "start": "node server.js"
   },
   "engines": {
     "node": ">=18"

@@ -139,37 +139,6 @@ if (QUESTIONS.length !== 100 || QUESTIONS.some(x => x.o.length !== 4 || x.a < 0 
   throw new Error('Banco de preguntas inválido: se esperaban 100 preguntas con 4 opciones cada una');
 }
 
-// Tema visual acorde a cada una de las 100 preguntas (en el mismo orden de B1 a B5)
-const IMG_TOPICS = [
-  // B1: Química (1-20)
-  'Agua', 'Oxígeno', 'Hierro', 'Átomo', 'Oro',
-  'Tabla_periódica_de_los_elementos', 'Hielo', 'Dióxido_de_carbono', 'Sal_común', 'Hidróxido_de_sodio',
-  'PH', 'Mercurio_(elemento)', 'Sodio', 'Pulmón', 'Nitrógeno',
-  'Molécula', 'Matraz_de_Erlenmeyer', 'Laboratorio_de_química', 'Cobre', 'Vapor_de_agua',
-  // B2: Matemáticas y Física (21-40)
-  'Calculadora', 'Isaac_Newton', 'Termómetro', 'Barómetro', 'Velocímetro',
-  'Probeta_(química)', 'Rayo', 'Balanza_analítica', 'Teorema_de_Pitágoras', 'Turbina_eólica',
-  'Vaso_de_precipitados', 'Densidad', 'Manómetro', 'Copo_de_nieve', 'Puente',
-  'Montaña_rusa', 'Kilogramo', 'Pictograma_de_peligro', 'Regla_graduada', 'Péndulo_de_Newton',
-  // B3: Ingeniería Química (41-60)
-  'Planta_química', 'Petróleo', 'Columna_de_destilación', 'Intercambiador_de_calor', 'Bomba_centrífuga',
-  'Válvula', 'Filtración', 'Destilación', 'Catálisis', 'Refinería_de_petróleo',
-  'Diagrama_de_flujo_de_proceso', 'Tubería', 'Molino_de_bolas', 'Evaporador', 'Caudalímetro',
-  'Compresor_(máquina)', 'Equipo_de_protección_individual', 'Ingeniería_química', 'Termopar', 'Estación_depuradora_de_aguas_residuales',
-  // B4: Medio Ambiente y Seguridad (61-80)
-  'Fotosíntesis', 'Energía_solar', 'Corrosión', 'Gafas_de_seguridad', 'Reciclaje',
-  'Fuego', 'Efecto_invernadero', 'Atmósfera_terrestre', 'Combustión', 'Glaciar',
-  'Extintor', 'Bioseguridad', 'Compost', 'Lámpara_led', 'Agua_potable',
-  'Bacteria', 'Economía_circular', 'Toxicidad', 'Residuo_peligroso', 'Desarrollo_sostenible',
-  // B5: Ciencia y Tecnología (81-100)
-  'Tabla_periódica_de_los_elementos', 'Nebulosa', 'Metano', 'Gas_natural', 'Refinería',
-  'Polímero', 'Polietileno', 'Reacción_química', 'Electrólisis_del_agua', 'Ecuación_química',
-  'Jeringa', 'Globo_aerostático', 'Microscopio', 'Científico', 'Sala_de_control',
-  'Robot_industrial', 'Inteligencia_artificial', 'Industria_alimentaria', 'Báscula', 'Panel_solar'
-];
-
-QUESTIONS.forEach((q, i) => { q.topic = IMG_TOPICS[i] || CATEGORIES[q.c]; });
-
 // Numeración oficial 1-100 del documento "Preguntas por ronda" (coincide con el
 // orden del banco: pregunta n está en QUESTIONS[n - 1]).
 QUESTIONS.forEach((q, i) => { q.num = i + 1; });

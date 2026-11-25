@@ -1,7 +1,6 @@
 'use strict';
 
 const path = require('path');
-const fs = require('fs');
 const http = require('http');
 const crypto = require('crypto');
 const express = require('express');
@@ -11,64 +10,6 @@ const NUM_TO_INDEX = new Map(QUESTIONS.map((q, i) => [q.num, i]));
 
 const PORT = process.env.PORT || 3000;
 const MOD_PASS = process.env.MOD_PASS || 'JNTC2026';
-const PIXABAY_KEY = process.env.PIXABAY_KEY || '';
-const imgCache = new Map();
-
-// Imágenes pre-descargadas con "npm run fetch-images" (ver scripts/fetch-images.js).
-// Si el tema está aquí, se usa el archivo local y NO se hace ninguna solicitud
-// a internet durante el evento en vivo.
-const IMG_MANIFEST_PATH = path.join(__dirname, 'public', 'img', 'manifest.json');
-let localImgManifest = {};
-try {
-  localImgManifest = JSON.parse(fs.readFileSync(IMG_MANIFEST_PATH, 'utf8'));
-  console.log('Imágenes locales cargadas: ' + Object.keys(localImgManifest).length + ' temas');
-} catch (e) {
-  console.log('Sin manifiesto de imágenes locales todavía. Corre "npm run fetch-images" para generarlo.');
-}
-
-async function resolveImage(q) {
-  if (!q || !q.topic) return null;
-  if (localImgManifest[q.topic]) {
-    q.imgUrl = localImgManifest[q.topic];
-    return q.imgUrl;
-  }
-  if (imgCache.has(q.topic)) {
-    q.imgUrl = imgCache.get(q.topic);
-    return q.imgUrl;
-  }
-  let url = null;
-  try {
-    if (PIXABAY_KEY) {
-      const term = q.topic.replace(/_/g, ' ').replace(/\(.*?\)/g, '').trim();
-      const r = await fetch(
-        'https://pixabay.com/api/?key=' + encodeURIComponent(PIXABAY_KEY) +
-        '&q=' + encodeURIComponent(term) +
-        '&lang=es&image_type=photo&orientation=horizontal&safesearch=true&per_page=3'
-      );
-      if (r.ok) {
-        const d = await r.json();
-        if (d.hits && d.hits.length) url = d.hits[0].webformatURL;
-      }
-    }
-    if (!url) {
-      const r = await fetch(
-        'https://es.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(q.topic),
-        { headers: { 'User-Agent': 'JNTC-Quiz/1.0' } }
-      );
-      if (r.ok) {
-        const d = await r.json();
-        if (d.thumbnail && d.thumbnail.source) {
-          url = d.thumbnail.source.replace(/\/\d+px-/, '/800px-');
-        } else if (d.originalimage && d.originalimage.source) {
-          url = d.originalimage.source;
-        }
-      }
-    }
-  } catch (e) {}
-  imgCache.set(q.topic, url);
-  q.imgUrl = url;
-  return url;
-}
 const READY_MS = 3000;
 const READING_MS = 3500;
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -257,7 +198,6 @@ function startGame(cfg) {
 function nextQuestion() {
   game.pos++;
   if (game.pos >= game.order.length) return showPodium();
-  resolveImage(currentQ());
   for (const p of game.players.values()) {
     p.answer = null;
     p.last = null;
@@ -390,7 +330,6 @@ function basePublic() {
     s.category = { key: q.c, label: CATEGORIES[q.c] };
     if (ph !== 'GET_READY') s.text = q.q;
     if (ph === 'ANSWERING' || ph === 'QUESTION_RESULT' || ph === 'LEADERBOARD') s.options = q.o;
-    if (ph === 'ANSWERING' && q.imgUrl) s.img = q.imgUrl;
     // La respuesta correcta NUNCA se envía mientras se está votando
     if (ph === 'QUESTION_RESULT' || ph === 'LEADERBOARD') {
       s.correct = q.a;
